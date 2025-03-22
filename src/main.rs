@@ -88,6 +88,9 @@ struct Edge(Entity, Entity);
 #[derive(Resource)]
 struct Level(u64);
 
+#[derive(Component)]
+struct LevelText;
+
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
 
@@ -96,6 +99,19 @@ fn setup(mut commands: Commands) {
 
     let id = commands.register_system(generate_level);
     commands.insert_resource(GenerateLevelSystem(id));
+
+    commands.spawn((
+        LevelText,
+        Text::new("Level 1"),
+        Node {
+            justify_self: JustifySelf::Center,
+            ..default()
+        },
+        TextFont {
+            font_size: 30.0,
+            ..default()
+        },
+    ));
 }
 
 fn generate_level(
@@ -232,6 +248,7 @@ fn handle_edge_click(
 fn check_if_solved(
     vertex_q: Query<(Entity, &Vertex)>,
     edge_q: Query<Entity, With<Edge>>,
+    mut level_text_q: Query<&mut Text, With<LevelText>>,
     mut level: ResMut<Level>,
     generate_level_system: Res<GenerateLevelSystem>,
     mut commands: Commands,
@@ -247,6 +264,9 @@ fn check_if_solved(
             commands.entity(entity).despawn();
         }
         level.0 += 1;
+        if let Ok(mut level_text) = level_text_q.get_single_mut() {
+            level_text.0 = format!("Level {}", level.0);
+        }
         commands.run_system(generate_level_system.0);
     }
 }
