@@ -117,11 +117,15 @@ fn handle_vertex_click(
     let Ok((entity, mut vertex, transform)) = vertex_q.get_mut(trigger.entity()) else {
         return;
     };
+    if selected_vertex.edges.contains(&entity) {
+        // Edge already exists.
+        return;
+    }
     let dist = selected_transform
         .translation
         .xy()
         .distance(transform.translation.xy());
-    let edge_entity = commands
+    commands
         .spawn((
             Edge(selected_entity, entity),
             Mesh2d(meshes.add(Rectangle::new(dist, 5.0))),
@@ -135,10 +139,9 @@ fn handle_vertex_click(
                 ..default()
             },
         ))
-        .observe(handle_edge_click)
-        .id();
-    vertex.edges.insert(edge_entity);
-    selected_vertex.edges.insert(edge_entity);
+        .observe(handle_edge_click);
+    vertex.edges.insert(selected_entity);
+    selected_vertex.edges.insert(entity);
     commands.run_system(check_if_solved_system.0);
 }
 
@@ -149,14 +152,14 @@ fn handle_edge_click(
     mut commands: Commands,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
-    let Ok(egde) = edge_q.get(trigger.entity()) else {
+    let Ok(edge) = edge_q.get(trigger.entity()) else {
         return;
     };
-    if let Ok(mut vertex) = vertex_q.get_mut(egde.0) {
-        vertex.edges.remove(&trigger.entity());
+    if let Ok(mut vertex) = vertex_q.get_mut(edge.0) {
+        vertex.edges.remove(&edge.1);
     }
-    if let Ok(mut vertex) = vertex_q.get_mut(egde.1) {
-        vertex.edges.remove(&trigger.entity());
+    if let Ok(mut vertex) = vertex_q.get_mut(edge.1) {
+        vertex.edges.remove(&edge.0);
     }
     commands.entity(trigger.entity()).despawn();
     commands.run_system(check_if_solved_system.0);
