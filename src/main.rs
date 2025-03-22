@@ -58,13 +58,15 @@ impl Vertex {
                 self,
                 Mesh2d(meshes.add(Circle::new(25.0))),
                 MeshMaterial2d(materials.add(VertexMaterial { selected: 0 })),
+                Transform::from_translation(pos.extend(0.0)),
+            ))
+            .with_child((
                 Text2d(format!("{}", required)),
                 TextFont {
                     font_size: 35.0,
                     ..default()
                 },
                 TextColor(Color::BLACK),
-                Transform::from_translation(pos.extend(0.0)),
             ))
             .observe(handle_vertex_click);
     }
@@ -260,7 +262,7 @@ fn check_if_solved(
         .all(|(_, vertex)| vertex.edges.len() == vertex.required_edges);
     if solved {
         for (entity, _) in &vertex_q {
-            commands.entity(entity).despawn();
+            commands.entity(entity).despawn_recursive();
         }
         for entity in &edge_q {
             commands.entity(entity).despawn();
