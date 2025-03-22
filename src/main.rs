@@ -15,6 +15,7 @@ fn main() -> AppExit {
             MeshPickingPlugin,
             Material2dPlugin::<VertexMaterial>::default(),
         ))
+        .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, setup)
         .run()
 }
