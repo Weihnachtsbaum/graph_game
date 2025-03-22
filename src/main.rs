@@ -74,7 +74,7 @@ impl Material2d for VertexMaterial {
 }
 
 #[derive(Component)]
-struct Connection(Entity, Entity);
+struct Edge(Entity, Entity);
 
 fn setup(
     mut commands: Commands,
@@ -123,7 +123,7 @@ fn handle_vertex_click(
         .distance(transform.translation.xy());
     let edge_entity = commands
         .spawn((
-            Connection(selected_entity, entity),
+            Edge(selected_entity, entity),
             Mesh2d(meshes.add(Rectangle::new(dist, 5.0))),
             MeshMaterial2d(materials.add(Color::WHITE)),
             Transform {
@@ -135,27 +135,27 @@ fn handle_vertex_click(
                 ..default()
             },
         ))
-        .observe(handle_connection_click)
+        .observe(handle_edge_click)
         .id();
     vertex.edges.insert(edge_entity);
     selected_vertex.edges.insert(edge_entity);
     commands.run_system(check_if_solved_system.0);
 }
 
-fn handle_connection_click(
+fn handle_edge_click(
     trigger: Trigger<Pointer<Click>>,
-    connection_q: Query<&Connection>,
+    edge_q: Query<&Edge>,
     mut vertex_q: Query<&mut Vertex>,
     mut commands: Commands,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
-    let Ok(connection) = connection_q.get(trigger.entity()) else {
+    let Ok(egde) = edge_q.get(trigger.entity()) else {
         return;
     };
-    if let Ok(mut vertex) = vertex_q.get_mut(connection.0) {
+    if let Ok(mut vertex) = vertex_q.get_mut(egde.0) {
         vertex.edges.remove(&trigger.entity());
     }
-    if let Ok(mut vertex) = vertex_q.get_mut(connection.1) {
+    if let Ok(mut vertex) = vertex_q.get_mut(egde.1) {
         vertex.edges.remove(&trigger.entity());
     }
     commands.entity(trigger.entity()).despawn();
