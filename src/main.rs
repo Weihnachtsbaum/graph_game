@@ -7,6 +7,7 @@ use bevy::{
     sprite::{Material2d, Material2dPlugin},
     utils::HashSet,
 };
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 fn main() -> AppExit {
     App::new()
@@ -16,7 +17,7 @@ fn main() -> AppExit {
             Material2dPlugin::<VertexMaterial>::default(),
         ))
         .insert_resource(ClearColor(Color::BLACK))
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, generate_level))
         .run()
 }
 
@@ -80,26 +81,55 @@ impl Material2d for VertexMaterial {
 #[derive(Component)]
 struct Edge(Entity, Entity);
 
-fn setup(
+fn setup(mut commands: Commands) {
+    commands.spawn(Camera2d);
+    let id = commands.register_system(check_if_solved);
+    commands.insert_resource(CheckIfSolvedSystem(id));
+}
+
+fn generate_level(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<VertexMaterial>>,
 ) {
-    commands.spawn(Camera2d);
-    let id = commands.register_system(check_if_solved);
-    commands.insert_resource(CheckIfSolvedSystem(id));
-    Vertex::new(1).spawn(
-        Vec2::new(-150.0, -25.0),
-        commands.reborrow(),
-        meshes.reborrow(),
-        materials.reborrow(),
-    );
-    Vertex::new(1).spawn(
-        Vec2::new(100.0, 50.0),
-        commands.reborrow(),
-        meshes.reborrow(),
-        materials.reborrow(),
-    );
+    let level = 1;
+    let mut rng = StdRng::seed_from_u64(level);
+
+    let mut vertices: Vec<(u8, u8)> = vec![];
+
+    loop {
+        let degree = rng.gen_range(1..=4);
+        let mut current = 0;
+
+        for vertex in &mut vertices {
+            if current == degree {
+                break;
+            }
+            if vertex.0 > vertex.1 {
+                vertex.1 += 1;
+                current += 1;
+            }
+        }
+
+        vertices.push((degree, current));
+
+        if degree == current && vertices.iter().all(|v| v.0 == v.1) {
+            break;
+        }
+    }
+
+    for vertex in vertices {
+        Vertex::new(vertex.0 as usize).spawn(
+            generate_pos(&mut rng),
+            commands.reborrow(),
+            meshes.reborrow(),
+            materials.reborrow(),
+        );
+    }
+}
+
+fn generate_pos(rng: &mut impl Rng) -> Vec2 {
+    Vec2::new(rng.gen_range(-250.0..250.0), rng.gen_range(-250.0..250.0))
 }
 
 #[allow(clippy::too_many_arguments)]
