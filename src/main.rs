@@ -17,12 +17,16 @@ fn main() -> AppExit {
             Material2dPlugin::<VertexMaterial>::default(),
         ))
         .insert_resource(ClearColor(Color::BLACK))
+        .insert_resource(Level(1))
         .add_systems(Startup, (setup, generate_level))
         .run()
 }
 
 #[derive(Resource)]
 struct CheckIfSolvedSystem(SystemId);
+
+#[derive(Resource)]
+struct GenerateLevelSystem(SystemId);
 
 #[derive(Component)]
 struct Selected;
@@ -81,19 +85,26 @@ impl Material2d for VertexMaterial {
 #[derive(Component)]
 struct Edge(Entity, Entity);
 
+#[derive(Resource)]
+struct Level(u64);
+
 fn setup(mut commands: Commands) {
     commands.spawn(Camera2d);
+
     let id = commands.register_system(check_if_solved);
     commands.insert_resource(CheckIfSolvedSystem(id));
+
+    let id = commands.register_system(generate_level);
+    commands.insert_resource(GenerateLevelSystem(id));
 }
 
 fn generate_level(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<VertexMaterial>>,
+    level: Res<Level>,
 ) {
-    let level = 1;
-    let mut rng = StdRng::seed_from_u64(level);
+    let mut rng = StdRng::seed_from_u64(level.0);
 
     let mut vertices: Vec<(u8, u8)> = vec![];
 
@@ -218,9 +229,24 @@ fn handle_edge_click(
     commands.run_system(check_if_solved_system.0);
 }
 
-fn check_if_solved(vertex_q: Query<&Vertex>) {
+fn check_if_solved(
+    vertex_q: Query<(Entity, &Vertex)>,
+    edge_q: Query<Entity, With<Edge>>,
+    mut level: ResMut<Level>,
+    generate_level_system: Res<GenerateLevelSystem>,
+    mut commands: Commands,
+) {
     let solved = vertex_q
         .iter()
-        .all(|vertex| vertex.edges.len() == vertex.required_edges);
-    info!("Solved: {}", solved);
+        .all(|(_, vertex)| vertex.edges.len() == vertex.required_edges);
+    if solved {
+        for (entity, _) in &vertex_q {
+            commands.entity(entity).despawn();
+        }
+        for entity in &edge_q {
+            commands.entity(entity).despawn();
+        }
+        level.0 += 1;
+        commands.run_system(generate_level_system.0);
+    }
 }
