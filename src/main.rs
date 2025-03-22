@@ -51,7 +51,7 @@ impl Vertex {
             .spawn((
                 self,
                 Mesh2d(meshes.add(Circle::new(25.0))),
-                MeshMaterial2d(materials.add(VertexMaterial {})),
+                MeshMaterial2d(materials.add(VertexMaterial { selected: 0 })),
                 Text2d(format!("{}", required)),
                 TextFont {
                     font_size: 35.0,
@@ -65,7 +65,10 @@ impl Vertex {
 }
 
 #[derive(AsBindGroup, Debug, Clone, Asset, TypePath)]
-struct VertexMaterial {}
+struct VertexMaterial {
+    #[uniform(0)]
+    selected: u32,
+}
 
 impl Material2d for VertexMaterial {
     fn fragment_shader() -> ShaderRef {
@@ -98,22 +101,41 @@ fn setup(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_vertex_click(
     trigger: Trigger<Pointer<Click>>,
     mut selected_q: Query<(Entity, &mut Vertex, &Transform), With<Selected>>,
     mut vertex_q: Query<(Entity, &mut Vertex, &Transform), Without<Selected>>,
+    mesh_material_q: Query<&MeshMaterial2d<VertexMaterial>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
+    mut vertex_materials: ResMut<Assets<VertexMaterial>>,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
     let Ok((selected_entity, mut selected_vertex, selected_transform)) =
         selected_q.get_single_mut()
     else {
         commands.entity(trigger.entity()).insert(Selected);
+        let Ok(handle) = mesh_material_q.get(trigger.entity()) else {
+            return;
+        };
+        let Some(material) = vertex_materials.get_mut(handle) else {
+            return;
+        };
+        material.selected = 1;
         return;
     };
+
     commands.entity(selected_entity).remove::<Selected>();
+    let Ok(handle) = mesh_material_q.get(selected_entity) else {
+        return;
+    };
+    let Some(material) = vertex_materials.get_mut(handle) else {
+        return;
+    };
+    material.selected = 0;
+
     let Ok((entity, mut vertex, transform)) = vertex_q.get_mut(trigger.entity()) else {
         return;
     };
@@ -129,7 +151,7 @@ fn handle_vertex_click(
         .spawn((
             Edge(selected_entity, entity),
             Mesh2d(meshes.add(Rectangle::new(dist, 5.0))),
-            MeshMaterial2d(materials.add(Color::WHITE)),
+            MeshMaterial2d(color_materials.add(Color::WHITE)),
             Transform {
                 translation: (selected_transform.translation + transform.translation) / 2.0,
                 rotation: {
