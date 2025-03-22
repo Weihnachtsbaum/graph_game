@@ -211,7 +211,9 @@ fn handle_vertex_click(
             Mesh2d(meshes.add(Rectangle::new(dist, 5.0))),
             MeshMaterial2d(color_materials.add(Color::WHITE)),
             Transform {
-                translation: (selected_transform.translation + transform.translation) / 2.0,
+                translation: ((selected_transform.translation.xy() + transform.translation.xy())
+                    / 2.0)
+                    .extend(-1.0),
                 rotation: {
                     let diff = transform.translation - selected_transform.translation;
                     Quat::from_rotation_z(diff.y.atan2(diff.x))
