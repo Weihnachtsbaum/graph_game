@@ -187,7 +187,7 @@ fn handle_vertex_click(
                 translation: (selected_transform.translation + transform.translation) / 2.0,
                 rotation: {
                     let diff = transform.translation - selected_transform.translation;
-                    Quat::from_rotation_z((diff.y / diff.x).asin())
+                    Quat::from_rotation_z(diff.y.atan2(diff.x))
                 },
                 ..default()
             },
