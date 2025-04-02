@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "console"), windows_subsystem = "windows")]
 
+use audio::PlaceAudioHandle;
 use bevy::{
     ecs::system::SystemId,
     prelude::*,
@@ -9,12 +10,15 @@ use bevy::{
 };
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
+mod audio;
+
 fn main() -> AppExit {
     App::new()
         .add_plugins((
             DefaultPlugins,
             MeshPickingPlugin,
             Material2dPlugin::<VertexMaterial>::default(),
+            audio::plugin,
         ))
         .insert_resource(ClearColor(Color::BLACK))
         .insert_resource(Level(1))
@@ -171,6 +175,7 @@ fn handle_vertex_click(
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     mut vertex_materials: ResMut<Assets<VertexMaterial>>,
+    place_audio: Res<PlaceAudioHandle>,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
     let Ok((selected_entity, mut selected_vertex, selected_transform)) =
@@ -222,6 +227,8 @@ fn handle_vertex_click(
                 },
                 ..default()
             },
+            AudioPlayer(place_audio.0.clone()),
+            PlaybackSettings::REMOVE,
         ))
         .observe(handle_edge_click);
     vertex.edges.insert(selected_entity);
