@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "console"), windows_subsystem = "windows")]
 
-use audio::PlaceAudioHandle;
+use audio::{PlaceAudioHandle, SelectAudioHandle};
 use bevy::{
     ecs::system::SystemId,
     prelude::*,
@@ -175,13 +175,18 @@ fn handle_vertex_click(
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
     mut vertex_materials: ResMut<Assets<VertexMaterial>>,
+    select_audio: Res<SelectAudioHandle>,
     place_audio: Res<PlaceAudioHandle>,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
     let Ok((selected_entity, mut selected_vertex, selected_transform)) =
         selected_q.get_single_mut()
     else {
-        commands.entity(trigger.entity()).insert(Selected);
+        commands.entity(trigger.entity()).insert((
+            Selected,
+            AudioPlayer(select_audio.0.clone()),
+            PlaybackSettings::REMOVE,
+        ));
         let Ok(handle) = mesh_material_q.get(trigger.entity()) else {
             return;
         };
