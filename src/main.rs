@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "console"), windows_subsystem = "windows")]
 
-use audio::{PlaceAudioHandle, SelectAudioHandle};
+use audio::{BeatLevelAudioHandle, PlaceAudioHandle, SelectAudioHandle};
 use bevy::{
     ecs::system::SystemId,
     prelude::*,
@@ -268,6 +268,7 @@ fn check_if_solved(
     mut level: ResMut<Level>,
     generate_level_system: Res<GenerateLevelSystem>,
     mut commands: Commands,
+    beat_level_audio: Res<BeatLevelAudioHandle>,
 ) {
     let solved = vertex_q
         .iter()
@@ -283,6 +284,10 @@ fn check_if_solved(
         if let Ok(mut level_text) = level_text_q.get_single_mut() {
             level_text.0 = format!("Level {}", level.0);
         }
+        commands.spawn((
+            AudioPlayer(beat_level_audio.0.clone()),
+            PlaybackSettings::DESPAWN,
+        ));
         commands.run_system(generate_level_system.0);
     }
 }
