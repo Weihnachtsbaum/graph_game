@@ -6,7 +6,7 @@ use crate::{level::CheckIfSolvedSystem, vertex::Vertex};
 pub struct Edge(pub Entity, pub Entity);
 
 impl Edge {
-    pub const WIDTH: f32 = 5.0;
+    pub const WIDTH: f32 = 10.0;
 }
 
 pub fn handle_edge_click(

@@ -45,14 +45,14 @@ impl Vertex {
         commands
             .spawn((
                 self,
-                Mesh2d(meshes.add(Circle::new(25.0))),
+                Mesh2d(meshes.add(Circle::new(50.0))),
                 MeshMaterial2d(materials.add(VertexMaterial { selected: 0 })),
                 Transform::from_translation(pos),
             ))
             .with_child((
                 Text2d(format!("{}", required)),
                 TextFont {
-                    font_size: 35.0,
+                    font_size: 70.0,
                     ..default()
                 },
                 TextColor(Color::BLACK),
@@ -166,7 +166,7 @@ fn handle_vertex_drag(
         transform.translation.x + delta.x,
         transform.translation.y - delta.y,
     );
-    if new_pos.distance_squared(vertex.start_pos) > 2500.0 {
+    if new_pos.distance_squared(vertex.start_pos) > 10000.0 {
         return;
     }
 

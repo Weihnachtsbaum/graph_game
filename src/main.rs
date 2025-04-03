@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "console"), windows_subsystem = "windows")]
 
-use bevy::prelude::*;
+use bevy::{prelude::*, render::camera::ScalingMode};
 
 mod audio;
 mod edge;
@@ -22,5 +22,14 @@ fn main() -> AppExit {
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2d);
+    commands.spawn((
+        Camera2d,
+        OrthographicProjection {
+            scaling_mode: ScalingMode::AutoMin {
+                min_width: 1440.0,
+                min_height: 1440.0,
+            },
+            ..OrthographicProjection::default_2d()
+        },
+    ));
 }

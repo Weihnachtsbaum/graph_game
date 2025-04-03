@@ -33,15 +33,12 @@ fn setup(mut commands: Commands) {
 
     commands.spawn((
         LevelText,
-        Text::new("Level 1"),
-        Node {
-            justify_self: JustifySelf::Center,
-            ..default()
-        },
+        Text2d::new("Level 1"),
         TextFont {
-            font_size: 30.0,
+            font_size: 60.0,
             ..default()
         },
+        Transform::from_xyz(0.0, 690.0, -2.0),
     ));
 }
 
@@ -86,13 +83,13 @@ fn generate_level(
 }
 
 fn generate_pos(rng: &mut impl Rng) -> Vec2 {
-    Vec2::new(rng.gen_range(-250.0..250.0), rng.gen_range(-250.0..250.0))
+    Vec2::new(rng.gen_range(-620.0..620.0), rng.gen_range(-620.0..620.0))
 }
 
 fn check_if_solved(
     vertex_q: Query<(Entity, &Vertex)>,
     edge_q: Query<Entity, With<Edge>>,
-    mut level_text_q: Query<&mut Text, With<LevelText>>,
+    mut level_text_q: Query<&mut Text2d, With<LevelText>>,
     mut level: ResMut<Level>,
     generate_level_system: Res<GenerateLevelSystem>,
     mut commands: Commands,
