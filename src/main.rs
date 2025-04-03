@@ -39,30 +39,32 @@ struct Selected;
 struct Vertex {
     edges: HashSet<Entity>,
     required_edges: usize,
+    start_pos: Vec2,
 }
 
 impl Vertex {
-    fn new(required_edges: usize) -> Self {
+    fn new(required_edges: usize, start_pos: Vec2) -> Self {
         Self {
             edges: HashSet::new(),
             required_edges,
+            start_pos,
         }
     }
 
     fn spawn(
         self,
-        pos: Vec2,
         mut commands: Commands,
         mut meshes: Mut<Assets<Mesh>>,
         mut materials: Mut<Assets<VertexMaterial>>,
     ) {
         let required = self.required_edges;
+        let pos = self.start_pos.extend(0.0);
         commands
             .spawn((
                 self,
                 Mesh2d(meshes.add(Circle::new(25.0))),
                 MeshMaterial2d(materials.add(VertexMaterial { selected: 0 })),
-                Transform::from_translation(pos.extend(0.0)),
+                Transform::from_translation(pos),
             ))
             .with_child((
                 Text2d(format!("{}", required)),
@@ -72,7 +74,8 @@ impl Vertex {
                 },
                 TextColor(Color::BLACK),
             ))
-            .observe(handle_vertex_click);
+            .observe(handle_vertex_click)
+            .observe(handle_vertex_drag);
     }
 }
 
@@ -90,6 +93,10 @@ impl Material2d for VertexMaterial {
 
 #[derive(Component)]
 struct Edge(Entity, Entity);
+
+impl Edge {
+    const WIDTH: f32 = 5.0;
+}
 
 #[derive(Resource)]
 struct Level(u64);
@@ -152,8 +159,7 @@ fn generate_level(
     }
 
     for vertex in vertices {
-        Vertex::new(vertex.0 as usize).spawn(
-            generate_pos(&mut rng),
+        Vertex::new(vertex.0 as usize, generate_pos(&mut rng)).spawn(
             commands.reborrow(),
             meshes.reborrow(),
             materials.reborrow(),
@@ -220,7 +226,7 @@ fn handle_vertex_click(
     commands
         .spawn((
             Edge(selected_entity, entity),
-            Mesh2d(meshes.add(Rectangle::new(dist, 5.0))),
+            Mesh2d(meshes.add(Rectangle::new(dist, Edge::WIDTH))),
             MeshMaterial2d(color_materials.add(Color::WHITE)),
             Transform {
                 translation: ((selected_transform.translation.xy() + transform.translation.xy())
@@ -239,6 +245,57 @@ fn handle_vertex_click(
     vertex.edges.insert(selected_entity);
     selected_vertex.edges.insert(entity);
     commands.run_system(check_if_solved_system.0);
+}
+
+fn handle_vertex_drag(
+    trigger: Trigger<Pointer<Drag>>,
+    mut vertex_q: Query<(&Vertex, &mut Transform)>,
+    mut edge_q: Query<(&Edge, &mut Transform, &Mesh2d), Without<Vertex>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    let entity = trigger.entity();
+    let Ok((vertex, transform)) = vertex_q.get(entity) else {
+        return;
+    };
+
+    let delta = trigger.event().delta / 2.0;
+    let new_pos = Vec2::new(
+        transform.translation.x + delta.x,
+        transform.translation.y - delta.y,
+    );
+    if new_pos.distance_squared(vertex.start_pos) > 2500.0 {
+        return;
+    }
+
+    if !vertex.edges.is_empty() {
+        for (edge, mut edge_transform, mesh2d) in &mut edge_q {
+            let other = if edge.0 == entity {
+                edge.1
+            } else if edge.1 == entity {
+                edge.0
+            } else {
+                continue;
+            };
+
+            let Some(mesh) = meshes.get_mut(mesh2d) else {
+                return;
+            };
+            let Ok((_, other_transform)) = vertex_q.get(other) else {
+                return;
+            };
+            let other_pos = other_transform.translation.xy();
+            let dist = new_pos.distance(other_pos);
+            *mesh = Rectangle::new(dist, Edge::WIDTH).into();
+
+            edge_transform.translation = ((new_pos + other_pos) / 2.0).extend(-1.0);
+            let diff = new_pos - other_pos;
+            edge_transform.rotation = Quat::from_rotation_z(diff.y.atan2(diff.x));
+        }
+    }
+
+    let (_, mut transform) = vertex_q.get_mut(entity).unwrap();
+    transform.translation.x = new_pos.x;
+    transform.translation.y = new_pos.y;
 }
 
 fn handle_edge_click(
