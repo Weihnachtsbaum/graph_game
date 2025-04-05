@@ -77,8 +77,8 @@ impl Material2d for VertexMaterial {
 #[allow(clippy::too_many_arguments)]
 fn handle_vertex_click(
     trigger: Trigger<Pointer<Click>>,
-    mut selected_q: Query<(Entity, &mut Vertex, &Transform), With<Selected>>,
-    mut vertex_q: Query<(Entity, &mut Vertex, &Transform), Without<Selected>>,
+    mut selected_q: Query<(Entity, &mut Vertex, &mut Transform), With<Selected>>,
+    mut vertex_q: Query<(Entity, &mut Vertex, &mut Transform), Without<Selected>>,
     mesh_material_q: Query<&MeshMaterial2d<VertexMaterial>>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -88,7 +88,7 @@ fn handle_vertex_click(
     place_audio: Res<PlaceAudioHandle>,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
-    let Ok((selected_entity, mut selected_vertex, selected_transform)) =
+    let Ok((selected_entity, mut selected_vertex, mut selected_transform)) =
         selected_q.get_single_mut()
     else {
         commands.entity(trigger.entity()).insert((
@@ -103,6 +103,12 @@ fn handle_vertex_click(
             return;
         };
         material.selected = 1;
+
+        let Ok((.., mut transform)) = vertex_q.get_mut(trigger.entity()) else {
+            return;
+        };
+        transform.translation.z += 1.0;
+
         return;
     };
 
@@ -114,6 +120,7 @@ fn handle_vertex_click(
         return;
     };
     material.selected = 0;
+    selected_transform.translation.z -= 1.0;
 
     let Ok((entity, mut vertex, transform)) = vertex_q.get_mut(trigger.entity()) else {
         return;
