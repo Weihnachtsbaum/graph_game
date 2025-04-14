@@ -46,7 +46,7 @@ impl Vertex {
             .spawn((
                 self,
                 Mesh2d(meshes.add(Circle::new(50.0))),
-                MeshMaterial2d(materials.add(VertexMaterial { selected: 0 })),
+                MeshMaterial2d(materials.add(VertexMaterial { bits: 0 })),
                 Transform::from_translation(pos),
             ))
             .with_child((
@@ -55,7 +55,6 @@ impl Vertex {
                     font_size: 70.0,
                     ..default()
                 },
-                TextColor(Color::BLACK),
             ))
             .observe(handle_vertex_click)
             .observe(handle_vertex_drag);
@@ -64,8 +63,10 @@ impl Vertex {
 
 #[derive(AsBindGroup, Debug, Clone, Asset, TypePath)]
 pub struct VertexMaterial {
+    /// 1 << 0: selected
+    /// 1 << 1: solved
     #[uniform(0)]
-    selected: u32,
+    bits: u32,
 }
 
 impl Material2d for VertexMaterial {
@@ -74,12 +75,33 @@ impl Material2d for VertexMaterial {
     }
 }
 
+impl VertexMaterial {
+    fn set_selected(&mut self, v: bool) {
+        if v {
+            self.bits |= 1;
+        } else {
+            self.bits &= !1;
+        }
+    }
+
+    pub fn set_solved(&mut self, v: bool, text_color: &mut TextColor) {
+        if v {
+            self.bits |= 2;
+            text_color.0 = Color::BLACK;
+        } else {
+            self.bits &= !2;
+            text_color.0 = Color::WHITE;
+        }
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn handle_vertex_click(
     trigger: Trigger<Pointer<Click>>,
-    mut selected_q: Query<(Entity, &mut Vertex, &mut Transform), With<Selected>>,
-    mut vertex_q: Query<(Entity, &mut Vertex, &mut Transform), Without<Selected>>,
+    mut selected_q: Query<(Entity, &mut Vertex, &mut Transform, &Children), With<Selected>>,
+    mut vertex_q: Query<(Entity, &mut Vertex, &mut Transform, &Children), Without<Selected>>,
     mesh_material_q: Query<&MeshMaterial2d<VertexMaterial>>,
+    mut text_color_q: Query<&mut TextColor>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
@@ -88,7 +110,7 @@ fn handle_vertex_click(
     place_audio: Res<PlaceAudioHandle>,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
-    let Ok((selected_entity, mut selected_vertex, mut selected_transform)) =
+    let Ok((selected_entity, mut selected_vertex, mut selected_transform, selected_children)) =
         selected_q.get_single_mut()
     else {
         commands.entity(trigger.entity()).insert((
@@ -102,9 +124,9 @@ fn handle_vertex_click(
         let Some(material) = vertex_materials.get_mut(handle) else {
             return;
         };
-        material.selected = 1;
+        material.set_selected(true);
 
-        let Ok((.., mut transform)) = vertex_q.get_mut(trigger.entity()) else {
+        let Ok((.., mut transform, _)) = vertex_q.get_mut(trigger.entity()) else {
             return;
         };
         transform.translation.z += 1.0;
@@ -116,13 +138,13 @@ fn handle_vertex_click(
     let Ok(handle) = mesh_material_q.get(selected_entity) else {
         return;
     };
-    let Some(material) = vertex_materials.get_mut(handle) else {
+    let Some(selected_material) = vertex_materials.get_mut(handle) else {
         return;
     };
-    material.selected = 0;
+    selected_material.set_selected(false);
     selected_transform.translation.z -= 1.0;
 
-    let Ok((entity, mut vertex, transform)) = vertex_q.get_mut(trigger.entity()) else {
+    let Ok((entity, mut vertex, transform, children)) = vertex_q.get_mut(trigger.entity()) else {
         return;
     };
     if selected_vertex.edges.contains(&entity) {
@@ -152,8 +174,28 @@ fn handle_vertex_click(
             PlaybackSettings::REMOVE,
         ))
         .observe(handle_edge_click);
-    vertex.edges.insert(selected_entity);
+
     selected_vertex.edges.insert(entity);
+    let Ok(mut text_color) = text_color_q.get_mut(selected_children[0]) else {
+        return;
+    };
+    selected_material.set_solved(
+        selected_vertex.edges.len() == selected_vertex.required_edges,
+        &mut text_color,
+    );
+
+    vertex.edges.insert(selected_entity);
+    let Ok(handle) = mesh_material_q.get(entity) else {
+        return;
+    };
+    let Some(material) = vertex_materials.get_mut(handle) else {
+        return;
+    };
+    let Ok(mut text_color) = text_color_q.get_mut(children[0]) else {
+        return;
+    };
+    material.set_solved(vertex.edges.len() == vertex.required_edges, &mut text_color);
+
     commands.run_system(check_if_solved_system.0);
 }
 
