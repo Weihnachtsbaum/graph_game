@@ -16,7 +16,9 @@ pub fn plugin(app: &mut App) {
 }
 
 #[derive(Component)]
-struct Selected;
+pub struct Selected {
+    pub edge: Entity,
+}
 
 #[derive(Component)]
 pub struct Vertex {
@@ -95,13 +97,20 @@ impl VertexMaterial {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn handle_vertex_click(
     trigger: Trigger<Pointer<Click>>,
-    mut selected_q: Query<(Entity, &mut Vertex, &mut Transform, &Children), With<Selected>>,
-    mut vertex_q: Query<(Entity, &mut Vertex, &mut Transform, &Children), Without<Selected>>,
+    mut selected_q: Query<
+        (Entity, &mut Vertex, &mut Transform, &Children, &Selected),
+        Without<Edge>,
+    >,
+    mut vertex_q: Query<
+        (Entity, &mut Vertex, &mut Transform, &Children),
+        (Without<Selected>, Without<Edge>),
+    >,
     mesh_material_q: Query<&MeshMaterial2d<VertexMaterial>>,
     mut text_color_q: Query<&mut TextColor>,
+    mut edge_q: Query<(&mut Edge, &mut Transform, &Mesh2d)>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
@@ -110,14 +119,14 @@ fn handle_vertex_click(
     place_audio: Res<PlaceAudioHandle>,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
-    let Ok((selected_entity, mut selected_vertex, mut selected_transform, selected_children)) =
-        selected_q.get_single_mut()
+    let Ok((
+        selected_entity,
+        mut selected_vertex,
+        mut selected_transform,
+        selected_children,
+        selected,
+    )) = selected_q.get_single_mut()
     else {
-        commands.entity(trigger.entity()).insert((
-            Selected,
-            AudioPlayer(select_audio.0.clone()),
-            PlaybackSettings::REMOVE,
-        ));
         let Ok(handle) = mesh_material_q.get(trigger.entity()) else {
             return;
         };
@@ -126,11 +135,35 @@ fn handle_vertex_click(
         };
         material.set_selected(true);
 
-        let Ok((.., mut transform, _)) = vertex_q.get_mut(trigger.entity()) else {
+        let Ok((entity, _, mut transform, _)) = vertex_q.get_mut(trigger.entity()) else {
             return;
         };
         transform.translation.z += 1.0;
 
+        let Some(pointer_pos) = trigger.event().hit.position else {
+            return;
+        };
+        let dist = transform.translation.xy().distance(pointer_pos.xy());
+        let edge = commands
+            .spawn((
+                Edge(entity, Entity::PLACEHOLDER),
+                Mesh2d(meshes.add(Rectangle::new(dist, Edge::WIDTH))),
+                MeshMaterial2d(color_materials.add(Color::WHITE)),
+                Transform {
+                    translation: ((transform.translation.xy() + pointer_pos.xy()) / 2.0)
+                        .extend(-1.0),
+                    rotation: {
+                        let diff = transform.translation - pointer_pos;
+                        Quat::from_rotation_z(diff.y.atan2(diff.x))
+                    },
+                    ..default()
+                },
+                AudioPlayer(select_audio.0.clone()),
+                PlaybackSettings::REMOVE,
+            ))
+            .id();
+
+        commands.entity(trigger.entity()).insert(Selected { edge });
         return;
     };
 
@@ -145,35 +178,39 @@ fn handle_vertex_click(
     selected_transform.translation.z -= 1.0;
 
     let Ok((entity, mut vertex, transform, children)) = vertex_q.get_mut(trigger.entity()) else {
+        // Unselect vertex.
+        commands.entity(selected.edge).despawn();
         return;
     };
     if selected_vertex.edges.contains(&entity) {
         // Edge already exists.
+        commands.entity(selected.edge).despawn();
         return;
     }
+
+    let Ok((mut edge, mut edge_transform, edge_mesh2d)) = edge_q.get_mut(selected.edge) else {
+        return;
+    };
+    edge.1 = entity;
+    let Some(edge_mesh) = meshes.get_mut(edge_mesh2d) else {
+        return;
+    };
     let dist = selected_transform
         .translation
         .xy()
         .distance(transform.translation.xy());
-    commands
-        .spawn((
-            Edge(selected_entity, entity),
-            Mesh2d(meshes.add(Rectangle::new(dist, Edge::WIDTH))),
-            MeshMaterial2d(color_materials.add(Color::WHITE)),
-            Transform {
-                translation: ((selected_transform.translation.xy() + transform.translation.xy())
-                    / 2.0)
-                    .extend(-1.0),
-                rotation: {
-                    let diff = transform.translation - selected_transform.translation;
-                    Quat::from_rotation_z(diff.y.atan2(diff.x))
-                },
-                ..default()
-            },
-            AudioPlayer(place_audio.0.clone()),
-            PlaybackSettings::REMOVE,
-        ))
-        .observe(handle_edge_click);
+    *edge_mesh = Rectangle::new(dist, Edge::WIDTH).into();
+    edge_transform.translation =
+        ((selected_transform.translation.xy() + transform.translation.xy()) / 2.0).extend(-1.0);
+    let diff = transform.translation.xy() - selected_transform.translation.xy();
+    edge_transform.rotation = Quat::from_rotation_z(diff.y.atan2(diff.x));
+
+    commands.entity(selected.edge).observe(handle_edge_click);
+
+    commands.spawn((
+        AudioPlayer(place_audio.0.clone()),
+        PlaybackSettings::DESPAWN,
+    ));
 
     selected_vertex.edges.insert(entity);
     let Ok(mut text_color) = text_color_q.get_mut(selected_children[0]) else {

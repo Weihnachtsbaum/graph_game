@@ -13,6 +13,7 @@ fn main() -> AppExit {
             DefaultPlugins,
             MeshPickingPlugin,
             audio::plugin,
+            edge::plugin,
             level::plugin,
             vertex::plugin,
         ))
