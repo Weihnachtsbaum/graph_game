@@ -110,7 +110,6 @@ fn handle_vertex_click(
     >,
     mesh_material_q: Query<&MeshMaterial2d<VertexMaterial>>,
     mut text_color_q: Query<&mut TextColor>,
-    mut edge_q: Query<(&mut Edge, &mut Transform, &Mesh2d)>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut color_materials: ResMut<Assets<ColorMaterial>>,
@@ -177,40 +176,42 @@ fn handle_vertex_click(
     selected_material.set_selected(false);
     selected_transform.translation.z -= 1.0;
 
+    commands.entity(selected.edge).despawn();
+
     let Ok((entity, mut vertex, transform, children)) = vertex_q.get_mut(trigger.entity()) else {
         // Unselect vertex.
-        commands.entity(selected.edge).despawn();
         return;
     };
     if selected_vertex.edges.contains(&entity) {
         // Edge already exists.
-        commands.entity(selected.edge).despawn();
         return;
     }
 
-    let Ok((mut edge, mut edge_transform, edge_mesh2d)) = edge_q.get_mut(selected.edge) else {
-        return;
-    };
-    edge.1 = entity;
-    let Some(edge_mesh) = meshes.get_mut(edge_mesh2d) else {
-        return;
-    };
     let dist = selected_transform
         .translation
         .xy()
         .distance(transform.translation.xy());
-    *edge_mesh = Rectangle::new(dist, Edge::WIDTH).into();
-    edge_transform.translation =
-        ((selected_transform.translation.xy() + transform.translation.xy()) / 2.0).extend(-1.0);
-    let diff = transform.translation.xy() - selected_transform.translation.xy();
-    edge_transform.rotation = Quat::from_rotation_z(diff.y.atan2(diff.x));
-
-    commands.entity(selected.edge).observe(handle_edge_click);
-
-    commands.spawn((
-        AudioPlayer(place_audio.0.clone()),
-        PlaybackSettings::DESPAWN,
-    ));
+    // Despawning `selected.edge` and spawning new edge to avoid bug with removing edges.
+    // See bug in commit f650d38.
+    commands
+        .spawn((
+            Edge(selected_entity, entity),
+            Mesh2d(meshes.add(Rectangle::new(dist, Edge::WIDTH))),
+            MeshMaterial2d(color_materials.add(Color::WHITE)),
+            Transform {
+                translation: ((selected_transform.translation.xy() + transform.translation.xy())
+                    / 2.0)
+                    .extend(-1.0),
+                rotation: {
+                    let diff = transform.translation - selected_transform.translation;
+                    Quat::from_rotation_z(diff.y.atan2(diff.x))
+                },
+                ..default()
+            },
+            AudioPlayer(place_audio.0.clone()),
+            PlaybackSettings::REMOVE,
+        ))
+        .observe(handle_edge_click);
 
     selected_vertex.edges.insert(entity);
     let Ok(mut text_color) = text_color_q.get_mut(selected_children[0]) else {
