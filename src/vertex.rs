@@ -38,12 +38,13 @@ impl Vertex {
 
     pub fn spawn(
         self,
+        z: f32,
         mut commands: Commands,
         mut meshes: Mut<Assets<Mesh>>,
         mut materials: Mut<Assets<VertexMaterial>>,
     ) {
         let required = self.required_edges;
-        let pos = self.start_pos.extend(0.0);
+        let pos = self.start_pos.extend(z);
         commands
             .spawn((
                 self,

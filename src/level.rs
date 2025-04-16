@@ -73,8 +73,9 @@ fn generate_level(
         }
     }
 
-    for vertex in vertices {
+    for (i, vertex) in vertices.iter().enumerate() {
         Vertex::new(vertex.0 as usize, generate_pos(&mut rng)).spawn(
+            i as f32 / vertices.len() as f32,
             commands.reborrow(),
             meshes.reborrow(),
             materials.reborrow(),
