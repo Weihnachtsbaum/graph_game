@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::{ecs::system::SystemId, prelude::*};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
@@ -50,41 +52,46 @@ fn generate_level(
 ) {
     let mut rng = StdRng::seed_from_u64(level.0);
 
-    let mut vertices: Vec<(u8, u8)> = vec![];
+    let vertex_count =
+        rng.gen_range((1 + level.0 as usize).min(4)..=(1 + level.0 as usize).min(25));
+    let mut positions = Vec::with_capacity(vertex_count);
+    positions.push(Vec2::ZERO);
 
-    loop {
-        let degree = rng.gen_range(1..=4);
-        let mut current = 0;
+    for _ in 0..vertex_count {
+        positions.push(
+            (positions[rng.gen_range(0..positions.len())]
+                + rng.gen_range(Vertex::RADIUS * 2.0..Edge::MAX_LEN + Vertex::RADIUS * 2.0)
+                    * Vec2::from_angle(rng.gen_range(-PI..PI)))
+            .clamp(Vec2::new(-620.0, -620.0), Vec2::new(620.0, 620.0)),
+        );
+    }
 
-        for vertex in &mut vertices {
-            if current == degree {
-                break;
+    let mut required_edges = vec![0; vertex_count];
+    const EDGE_PROBABILITY: f32 = 0.3;
+
+    for (i1, pos1) in positions.iter().enumerate() {
+        for i2 in i1 + 1..vertex_count {
+            if pos1.distance_squared(positions[i2])
+                < (Edge::MAX_LEN + Vertex::RADIUS * 2.0) * (Edge::MAX_LEN + Vertex::RADIUS * 2.0)
+                && (required_edges[i1] == 0 || rng.r#gen::<f32>() < EDGE_PROBABILITY)
+            {
+                required_edges[i1] += 1;
+                required_edges[i2] += 1;
             }
-            if vertex.0 > vertex.1 {
-                vertex.1 += 1;
-                current += 1;
-            }
-        }
-
-        vertices.push((degree, current));
-
-        if degree == current && vertices.iter().all(|v| v.0 == v.1) {
-            break;
         }
     }
 
-    for (i, vertex) in vertices.iter().enumerate() {
-        Vertex::new(vertex.0 as usize, generate_pos(&mut rng)).spawn(
-            i as f32 / vertices.len() as f32,
+    for (i, (pos, required_edges)) in positions.iter().zip(required_edges).enumerate() {
+        if required_edges == 0 {
+            continue;
+        }
+        Vertex::new(required_edges, *pos).spawn(
+            i as f32 / vertex_count as f32,
             commands.reborrow(),
             meshes.reborrow(),
             materials.reborrow(),
         );
     }
-}
-
-fn generate_pos(rng: &mut impl Rng) -> Vec2 {
-    Vec2::new(rng.gen_range(-620.0..620.0), rng.gen_range(-620.0..620.0))
 }
 
 fn check_if_solved(

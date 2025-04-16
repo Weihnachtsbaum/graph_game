@@ -14,6 +14,7 @@ pub struct Edge(pub Entity, pub Entity);
 
 impl Edge {
     pub const WIDTH: f32 = 10.0;
+    pub const MAX_LEN: f32 = 400.0;
 }
 
 fn handle_mouse_move(
@@ -36,14 +37,17 @@ fn handle_mouse_move(
         let Ok(pos) = cam.viewport_to_world_2d(cam_transform, ev.position) else {
             return;
         };
-        let dist = vertex_transform.translation.xy().distance(pos);
+        let vertex_pos = vertex_transform.translation.xy();
+        let dist = vertex_pos.distance(pos).min(Edge::MAX_LEN + Vertex::RADIUS);
         let Some(mesh) = meshes.get_mut(mesh2d) else {
             return;
         };
         *mesh = Rectangle::new(dist, Edge::WIDTH).into();
 
-        transform.translation = ((vertex_transform.translation.xy() + pos) / 2.0).extend(-1.0);
-        let diff = vertex_transform.translation.xy() - pos;
+        transform.translation = (vertex_pos
+            + (pos - vertex_pos).clamp_length_max(Edge::MAX_LEN + Vertex::RADIUS) / 2.0)
+            .extend(-1.0);
+        let diff = vertex_pos - pos;
         transform.rotation = Quat::from_rotation_z(diff.y.atan2(diff.x));
     }
 }

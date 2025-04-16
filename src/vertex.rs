@@ -28,6 +28,8 @@ pub struct Vertex {
 }
 
 impl Vertex {
+    pub const RADIUS: f32 = 50.0;
+
     pub fn new(required_edges: usize, start_pos: Vec2) -> Self {
         Self {
             edges: HashSet::new(),
@@ -48,7 +50,7 @@ impl Vertex {
         commands
             .spawn((
                 self,
-                Mesh2d(meshes.add(Circle::new(50.0))),
+                Mesh2d(meshes.add(Circle::new(Self::RADIUS))),
                 MeshMaterial2d(materials.add(VertexMaterial { bits: 0 })),
                 Transform::from_translation(pos),
             ))
@@ -192,6 +194,10 @@ fn handle_vertex_click(
         .translation
         .xy()
         .distance(transform.translation.xy());
+
+    if dist > Edge::MAX_LEN + Vertex::RADIUS * 2.0 {
+        return;
+    }
     // Despawning `selected.edge` and spawning new edge to avoid bug with removing edges.
     // See bug in commit f650d38.
     commands
