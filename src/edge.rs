@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{
+    math::bounding::{BoundingCircle, RayCast2d},
+    prelude::*,
+};
 
 use crate::{
     level::CheckIfSolvedSystem,
@@ -21,6 +24,7 @@ fn handle_mouse_move(
     mut cursor_evr: EventReader<CursorMoved>,
     mut edge_q: Query<(&mut Transform, &Mesh2d), Without<Vertex>>,
     selected_q: Query<(&Selected, &Transform), With<Vertex>>,
+    vertex_q: Query<&Transform, With<Vertex>>,
     cam_q: Query<(&Camera, &GlobalTransform)>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
@@ -34,10 +38,13 @@ fn handle_mouse_move(
         let Ok((cam, cam_transform)) = cam_q.get_single() else {
             return;
         };
-        let Ok(pos) = cam.viewport_to_world_2d(cam_transform, ev.position) else {
+        let vertex_pos = vertex_transform.translation.xy();
+        let Ok(pos) = cam
+            .viewport_to_world_2d(cam_transform, ev.position)
+            .map(|pos| get_obstacle_pos(vertex_pos, pos, vertex_q.iter()))
+        else {
             return;
         };
-        let vertex_pos = vertex_transform.translation.xy();
         let dist = vertex_pos.distance(pos).min(Edge::MAX_LEN + Vertex::RADIUS);
         let Some(mesh) = meshes.get_mut(mesh2d) else {
             return;
@@ -84,4 +91,31 @@ pub fn handle_edge_click(
     }
     commands.entity(trigger.entity()).despawn();
     commands.run_system(check_if_solved_system.0);
+}
+
+pub fn get_obstacle_pos<'a>(
+    pos1: Vec2,
+    pos2: Vec2,
+    vertex_q: impl Iterator<Item = &'a Transform>,
+) -> Vec2 {
+    let dir = Dir2::new(pos2 - pos1).unwrap();
+    let ray = Ray2d::new(pos1, dir);
+    let dist = pos1.distance(pos2).min(Edge::MAX_LEN + Vertex::RADIUS);
+    let ray_cast = RayCast2d::from_ray(ray, dist);
+    let mut obstacle_dist = None;
+    for transform in vertex_q {
+        if transform.translation.xy() == pos1 {
+            continue;
+        }
+        let circle = BoundingCircle::new(transform.translation.xy(), Vertex::RADIUS);
+        if let Some(result) = ray_cast.circle_intersection_at(&circle) {
+            if obstacle_dist.is_none() || obstacle_dist.unwrap() > result {
+                obstacle_dist = Some(result);
+            }
+        }
+    }
+    match obstacle_dist {
+        Some(dist) => ray.get_point(dist),
+        None => pos2,
+    }
 }

@@ -7,7 +7,7 @@ use bevy::{
 
 use crate::{
     audio::{PlaceAudioHandle, SelectAudioHandle},
-    edge::{Edge, handle_edge_click},
+    edge::{Edge, get_obstacle_pos, handle_edge_click},
     level::CheckIfSolvedSystem,
 };
 
@@ -121,6 +121,9 @@ fn handle_vertex_click(
     place_audio: Res<PlaceAudioHandle>,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
+    let Some(pointer_pos) = trigger.event().hit.position else {
+        return;
+    };
     let Ok((
         selected_entity,
         mut selected_vertex,
@@ -142,9 +145,6 @@ fn handle_vertex_click(
         };
         transform.translation.z += 1.0;
 
-        let Some(pointer_pos) = trigger.event().hit.position else {
-            return;
-        };
         let dist = transform.translation.xy().distance(pointer_pos.xy());
         let edge = commands
             .spawn((
@@ -180,6 +180,21 @@ fn handle_vertex_click(
     selected_transform.translation.z -= 1.0;
 
     commands.entity(selected.edge).despawn();
+
+    if get_obstacle_pos(
+        selected_transform.translation.xy(),
+        pointer_pos.xy(),
+        vertex_q.iter().filter_map(|(e, _, transform, _)| {
+            if e == trigger.entity() {
+                None
+            } else {
+                Some(transform)
+            }
+        }),
+    ) != pointer_pos.xy()
+    {
+        return;
+    }
 
     let Ok((entity, mut vertex, transform, children)) = vertex_q.get_mut(trigger.entity()) else {
         // Unselect vertex.
