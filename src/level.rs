@@ -1,6 +1,10 @@
 use std::f32::consts::PI;
 
-use bevy::{ecs::system::SystemId, prelude::*};
+use bevy::{
+    ecs::system::SystemId,
+    math::bounding::{BoundingCircle, RayCast2d},
+    prelude::*,
+};
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use crate::{
@@ -67,13 +71,30 @@ fn generate_level(
     }
 
     let mut required_edges = vec![0; vertex_count];
-    const EDGE_PROBABILITY: f32 = 0.3;
+    const EDGE_PROBABILITY: f32 = 0.5;
 
     for (i1, pos1) in positions.iter().enumerate() {
         for i2 in i1 + 1..vertex_count {
-            if pos1.distance_squared(positions[i2])
-                < (Edge::MAX_LEN + Vertex::RADIUS * 2.0) * (Edge::MAX_LEN + Vertex::RADIUS * 2.0)
+            let pos2 = positions[i2];
+            let dist = pos1.distance(pos2);
+            if dist < Edge::MAX_LEN + Vertex::RADIUS * 2.0
                 && (required_edges[i1] == 0 || rng.r#gen::<f32>() < EDGE_PROBABILITY)
+                && {
+                    let dir = Dir2::new(pos2 - pos1).unwrap();
+                    let ray_cast = RayCast2d::new(*pos1, dir, dist - Vertex::RADIUS - 0.1);
+                    let mut clear = true;
+                    for obstacle_pos in &positions {
+                        if obstacle_pos == pos1 {
+                            continue;
+                        }
+                        let circle = BoundingCircle::new(*obstacle_pos, Vertex::RADIUS);
+                        if ray_cast.circle_intersection_at(&circle).is_some() {
+                            clear = false;
+                            break;
+                        }
+                    }
+                    clear
+                }
             {
                 required_edges[i1] += 1;
                 required_edges[i2] += 1;
