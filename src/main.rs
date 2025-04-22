@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "console"), windows_subsystem = "windows")]
 
-use bevy::{prelude::*, render::camera::ScalingMode};
+use bevy::{core_pipeline::bloom::Bloom, prelude::*, render::camera::ScalingMode};
 
 mod audio;
 mod edge;
@@ -32,5 +32,10 @@ fn setup(mut commands: Commands) {
             },
             ..OrthographicProjection::default_2d()
         },
+        Camera {
+            hdr: true,
+            ..default()
+        },
+        Bloom::NATURAL,
     ));
 }

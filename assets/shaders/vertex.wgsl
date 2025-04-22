@@ -9,9 +9,14 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
 
+    var solved_multiplier = 1.0;
+    if solved != 0 {
+        solved_multiplier = 3.0;
+    }
+
     let selected = bits & 1;
     if selected != 0 {
-        return vec4<f32>(1.0, 0.5, 0.2, 1.0);
+        return vec4<f32>(1.0, 0.5, 0.2, 1.0) * solved_multiplier;
     }
-    return vec4<f32>(1.0, 1.0, 1.0, 1.0);
+    return vec4<f32>(1.0, 1.0, 1.0, 1.0) * solved_multiplier;
 }
