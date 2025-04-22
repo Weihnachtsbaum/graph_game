@@ -17,6 +17,7 @@ fn main() -> AppExit {
             level::plugin,
             vertex::plugin,
         ))
+        .init_state::<GameState>()
         .insert_resource(ClearColor(Color::BLACK))
         .add_systems(Startup, setup)
         .run()
@@ -38,4 +39,11 @@ fn setup(mut commands: Commands) {
         },
         Bloom::NATURAL,
     ));
+}
+
+#[derive(States, Default, Clone, Debug, PartialEq, Eq, Hash)]
+enum GameState {
+    #[default]
+    Playing,
+    LevelTransition,
 }

@@ -8,6 +8,7 @@ use bevy::{
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use crate::{
+    GameState,
     audio::BeatLevelAudioHandle,
     edge::Edge,
     vertex::{Vertex, VertexMaterial},
@@ -15,14 +16,20 @@ use crate::{
 
 pub fn plugin(app: &mut App) {
     app.insert_resource(Level(1))
-        .add_systems(Startup, (setup, generate_level));
+        .init_resource::<NextLevelTimer>()
+        .add_systems(Startup, (setup, generate_level))
+        .add_systems(
+            FixedUpdate,
+            tick_next_level_timer.run_if(in_state(GameState::LevelTransition)),
+        )
+        .add_systems(
+            OnExit(GameState::LevelTransition),
+            (switch_level, generate_level).chain(),
+        );
 }
 
 #[derive(Resource)]
 pub struct CheckIfSolvedSystem(pub SystemId);
-
-#[derive(Resource)]
-struct GenerateLevelSystem(SystemId);
 
 #[derive(Resource)]
 struct Level(u64);
@@ -33,9 +40,6 @@ struct LevelText;
 fn setup(mut commands: Commands) {
     let id = commands.register_system(check_if_solved);
     commands.insert_resource(CheckIfSolvedSystem(id));
-
-    let id = commands.register_system(generate_level);
-    commands.insert_resource(GenerateLevelSystem(id));
 
     commands.spawn((
         LevelText,
@@ -126,31 +130,55 @@ fn generate_level(
 
 fn check_if_solved(
     vertex_q: Query<(Entity, &Vertex)>,
-    edge_q: Query<Entity, With<Edge>>,
-    mut level_text_q: Query<&mut Text2d, With<LevelText>>,
-    mut level: ResMut<Level>,
-    generate_level_system: Res<GenerateLevelSystem>,
-    mut commands: Commands,
+    mut next_state: ResMut<NextState<GameState>>,
     beat_level_audio: Res<BeatLevelAudioHandle>,
+    mut commands: Commands,
 ) {
     let solved = vertex_q
         .iter()
         .all(|(_, vertex)| vertex.edges.len() == vertex.required_edges);
     if solved {
-        for (entity, _) in &vertex_q {
-            commands.entity(entity).despawn_recursive();
-        }
-        for entity in &edge_q {
-            commands.entity(entity).despawn();
-        }
-        level.0 += 1;
-        if let Ok(mut level_text) = level_text_q.get_single_mut() {
-            level_text.0 = format!("Level {}", level.0);
-        }
+        next_state.set(GameState::LevelTransition);
         commands.spawn((
             AudioPlayer(beat_level_audio.0.clone()),
             PlaybackSettings::DESPAWN,
         ));
-        commands.run_system(generate_level_system.0);
+    }
+}
+
+#[derive(Resource)]
+struct NextLevelTimer(Timer);
+
+impl Default for NextLevelTimer {
+    fn default() -> Self {
+        Self(Timer::from_seconds(1.0, TimerMode::Once))
+    }
+}
+
+fn tick_next_level_timer(
+    mut timer: ResMut<NextLevelTimer>,
+    time: Res<Time>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    timer.0.tick(time.delta());
+    if timer.0.finished() {
+        next_state.set(GameState::Playing);
+        timer.0.reset();
+    }
+}
+
+#[allow(clippy::type_complexity)]
+fn switch_level(
+    despawn_q: Query<Entity, Or<(With<Vertex>, With<Edge>)>>,
+    mut level: ResMut<Level>,
+    mut level_text_q: Query<&mut Text2d, With<LevelText>>,
+    mut commands: Commands,
+) {
+    for entity in &despawn_q {
+        commands.entity(entity).despawn_recursive();
+    }
+    level.0 += 1;
+    if let Ok(mut level_text) = level_text_q.get_single_mut() {
+        level_text.0 = format!("Level {}", level.0);
     }
 }
