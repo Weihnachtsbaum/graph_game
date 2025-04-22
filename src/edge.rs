@@ -98,7 +98,9 @@ pub fn get_obstacle_pos<'a>(
     pos2: Vec2,
     vertex_q: impl Iterator<Item = &'a Transform>,
 ) -> Vec2 {
-    let dir = Dir2::new(pos2 - pos1).unwrap();
+    let Ok(dir) = Dir2::new(pos2 - pos1) else {
+        return pos2;
+    };
     let ray = Ray2d::new(pos1 + (Vertex::RADIUS + 0.1) * dir, dir);
     let dist = (pos1.distance(pos2) - Vertex::RADIUS - 0.1).min(Edge::MAX_LEN);
     let ray_cast = RayCast2d::from_ray(ray, dist);

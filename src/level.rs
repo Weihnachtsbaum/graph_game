@@ -80,7 +80,7 @@ fn generate_level(
             if dist < Edge::MAX_LEN + Vertex::RADIUS * 2.0
                 && (required_edges[i1] == 0 || rng.r#gen::<f32>() < EDGE_PROBABILITY)
                 && {
-                    let dir = Dir2::new(pos2 - pos1).unwrap();
+                    let dir = Dir2::new(pos2 - pos1).unwrap_or(Dir2::X);
                     let ray_cast = RayCast2d::new(
                         *pos1 + (Vertex::RADIUS + 0.1) * dir,
                         dir,
