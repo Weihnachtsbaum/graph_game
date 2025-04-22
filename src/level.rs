@@ -81,12 +81,13 @@ fn generate_level(
                 && (required_edges[i1] == 0 || rng.r#gen::<f32>() < EDGE_PROBABILITY)
                 && {
                     let dir = Dir2::new(pos2 - pos1).unwrap();
-                    let ray_cast = RayCast2d::new(*pos1, dir, dist - Vertex::RADIUS - 0.1);
+                    let ray_cast = RayCast2d::new(
+                        *pos1 + (Vertex::RADIUS + 0.1) * dir,
+                        dir,
+                        dist - 2.0 * (Vertex::RADIUS + 0.1),
+                    );
                     let mut clear = true;
                     for obstacle_pos in &positions {
-                        if obstacle_pos == pos1 {
-                            continue;
-                        }
                         let circle = BoundingCircle::new(*obstacle_pos, Vertex::RADIUS);
                         if ray_cast.circle_intersection_at(&circle).is_some() {
                             clear = false;

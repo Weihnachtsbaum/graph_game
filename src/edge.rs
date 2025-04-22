@@ -99,14 +99,11 @@ pub fn get_obstacle_pos<'a>(
     vertex_q: impl Iterator<Item = &'a Transform>,
 ) -> Vec2 {
     let dir = Dir2::new(pos2 - pos1).unwrap();
-    let ray = Ray2d::new(pos1, dir);
-    let dist = pos1.distance(pos2).min(Edge::MAX_LEN + Vertex::RADIUS);
+    let ray = Ray2d::new(pos1 + (Vertex::RADIUS + 0.1) * dir, dir);
+    let dist = (pos1.distance(pos2) - Vertex::RADIUS - 0.1).min(Edge::MAX_LEN);
     let ray_cast = RayCast2d::from_ray(ray, dist);
     let mut obstacle_dist = None;
     for transform in vertex_q {
-        if transform.translation.xy() == pos1 {
-            continue;
-        }
         let circle = BoundingCircle::new(transform.translation.xy(), Vertex::RADIUS);
         if let Some(result) = ray_cast.circle_intersection_at(&circle) {
             if obstacle_dist.is_none() || obstacle_dist.unwrap() > result {
