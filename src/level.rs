@@ -62,12 +62,20 @@ fn generate_level(
     positions.push(Vec2::ZERO);
 
     for _ in 0..vertex_count {
-        positions.push(
-            (positions[rng.gen_range(0..positions.len())]
+        positions.push(loop {
+            // TODO: limit number of iterations
+            let pos = (positions[rng.gen_range(0..positions.len())]
                 + rng.gen_range(Vertex::RADIUS * 2.0..Edge::MAX_LEN + Vertex::RADIUS * 2.0)
                     * Vec2::from_angle(rng.gen_range(-PI..PI)))
-            .clamp(Vec2::new(-620.0, -620.0), Vec2::new(620.0, 620.0)),
-        );
+            .clamp(Vec2::new(-620.0, -620.0), Vec2::new(620.0, 620.0));
+            const MIN_DIST: f32 = Vertex::RADIUS * 2.0 + 40.0;
+            if positions
+                .iter()
+                .all(|p| p.distance_squared(pos) > MIN_DIST * MIN_DIST)
+            {
+                break pos;
+            }
+        });
     }
 
     let mut required_edges = vec![0; vertex_count];
