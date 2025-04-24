@@ -2,13 +2,13 @@ use std::f32::consts::PI;
 
 use bevy::{
     ecs::system::SystemId,
-    math::bounding::{BoundingCircle, RayCast2d},
+    math::bounding::{Aabb2d, BoundingCircle, RayCast2d},
     prelude::*,
 };
 use rand::{Rng, SeedableRng, rngs::StdRng};
 
 use crate::{
-    GameState,
+    GameState, Wall,
     audio::BeatLevelAudioHandle,
     edge::Edge,
     vertex::{Vertex, VertexMaterial},
@@ -55,7 +55,8 @@ fn setup(mut commands: Commands) {
 fn generate_level(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<VertexMaterial>>,
+    mut color_materials: ResMut<Assets<ColorMaterial>>,
+    mut vertex_materials: ResMut<Assets<VertexMaterial>>,
     level: Res<Level>,
 ) {
     let mut rng = StdRng::seed_from_u64(level.0);
@@ -82,6 +83,60 @@ fn generate_level(
         });
     }
 
+    let mut walls = vec![];
+
+    const WALL_PROBABILITY: f32 = 0.1;
+
+    for (i1, pos1) in positions.iter().enumerate() {
+        for i2 in i1 + 1..vertex_count {
+            let pos2 = positions[i2];
+            let dist = pos1.distance(pos2);
+            if dist > Edge::MAX_LEN + Vertex::RADIUS * 2.0
+                || rng.r#gen::<f32>() > WALL_PROBABILITY
+                || {
+                    let dir = Dir2::new(pos2 - pos1).unwrap_or(Dir2::X);
+                    let ray_cast = RayCast2d::new(
+                        *pos1 + (Vertex::RADIUS + 0.1) * dir,
+                        dir,
+                        dist - 2.0 * (Vertex::RADIUS + 0.1),
+                    );
+                    let mut blocked = false;
+                    for obstacle_pos in &positions {
+                        let circle = BoundingCircle::new(*obstacle_pos, Vertex::RADIUS);
+                        if ray_cast.circle_intersection_at(&circle).is_some() {
+                            blocked = true;
+                            break;
+                        }
+                    }
+                    blocked
+                }
+            {
+                continue;
+            }
+            let pos = (pos1 + pos2) / 2.0;
+            let len = rng.gen_range(100.0..200.0);
+            let diff = (pos1 - pos2).abs();
+            let size = if diff.y > diff.x {
+                Vec2::new(len, 25.0)
+            } else {
+                Vec2::new(25.0, len)
+            };
+            // TODO: make sure the area isn't occupied by a vertex
+            let aabb = Aabb2d::new(pos, size);
+            walls.push(aabb);
+            commands.spawn((
+                Wall,
+                Mesh2d(meshes.add(Rectangle::default())),
+                MeshMaterial2d(color_materials.add(Color::srgb(0.8, 0.7, 0.8))),
+                Transform {
+                    translation: pos.extend(-0.5),
+                    scale: size.extend(1.0),
+                    ..default()
+                },
+            ));
+        }
+    }
+
     let mut required_edges = vec![0; vertex_count];
     const EDGE_PROBABILITY: f32 = 0.5;
 
@@ -106,6 +161,14 @@ fn generate_level(
                             break;
                         }
                     }
+                    if clear {
+                        for aabb in &walls {
+                            if ray_cast.aabb_intersection_at(aabb).is_some() {
+                                clear = false;
+                                break;
+                            }
+                        }
+                    }
                     clear
                 }
             {
@@ -123,7 +186,7 @@ fn generate_level(
             i as f32 / vertex_count as f32,
             commands.reborrow(),
             meshes.reborrow(),
-            materials.reborrow(),
+            vertex_materials.reborrow(),
         );
     }
 }
@@ -169,7 +232,7 @@ fn tick_next_level_timer(
 
 #[allow(clippy::type_complexity)]
 fn switch_level(
-    despawn_q: Query<Entity, Or<(With<Vertex>, With<Edge>)>>,
+    despawn_q: Query<Entity, Or<(With<Vertex>, With<Edge>, With<Wall>)>>,
     mut level: ResMut<Level>,
     mut level_text_q: Query<&mut Text2d, With<LevelText>>,
     mut commands: Commands,

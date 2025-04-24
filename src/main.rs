@@ -47,3 +47,6 @@ enum GameState {
     Playing,
     LevelTransition,
 }
+
+#[derive(Component)]
+pub struct Wall;

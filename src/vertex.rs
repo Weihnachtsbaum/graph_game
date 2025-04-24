@@ -6,6 +6,7 @@ use bevy::{
 };
 
 use crate::{
+    Wall,
     audio::{PlaceAudioHandle, SelectAudioHandle},
     edge::{Edge, get_obstacle_pos, handle_edge_click},
     level::CheckIfSolvedSystem,
@@ -111,6 +112,7 @@ fn handle_vertex_click(
         (Entity, &mut Vertex, &mut Transform, &Children),
         (Without<Selected>, Without<Edge>),
     >,
+    wall_q: Query<&Transform, (With<Wall>, Without<Vertex>)>,
     mesh_material_q: Query<&MeshMaterial2d<VertexMaterial>>,
     mut text_color_q: Query<&mut TextColor>,
     mut commands: Commands,
@@ -191,6 +193,7 @@ fn handle_vertex_click(
                 Some(transform)
             }
         }),
+        wall_q.iter(),
     ) != pointer_pos.xy()
     {
         return;

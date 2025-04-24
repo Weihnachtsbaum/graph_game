@@ -1,9 +1,10 @@
 use bevy::{
-    math::bounding::{BoundingCircle, RayCast2d},
+    math::bounding::{Aabb2d, BoundingCircle, RayCast2d},
     prelude::*,
 };
 
 use crate::{
+    Wall,
     level::CheckIfSolvedSystem,
     vertex::{Selected, Vertex, VertexMaterial},
 };
@@ -20,11 +21,13 @@ impl Edge {
     pub const MAX_LEN: f32 = 400.0;
 }
 
+#[allow(clippy::type_complexity)]
 fn handle_mouse_move(
     mut cursor_evr: EventReader<CursorMoved>,
-    mut edge_q: Query<(&mut Transform, &Mesh2d), Without<Vertex>>,
+    mut edge_q: Query<(&mut Transform, &Mesh2d), (Without<Vertex>, Without<Wall>)>,
     selected_q: Query<(&Selected, &Transform), With<Vertex>>,
     vertex_q: Query<&Transform, With<Vertex>>,
+    wall_q: Query<&Transform, With<Wall>>,
     cam_q: Query<(&Camera, &GlobalTransform)>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
@@ -41,7 +44,7 @@ fn handle_mouse_move(
         let vertex_pos = vertex_transform.translation.xy();
         let Ok(pos) = cam
             .viewport_to_world_2d(cam_transform, ev.position)
-            .map(|pos| get_obstacle_pos(vertex_pos, pos, vertex_q.iter()))
+            .map(|pos| get_obstacle_pos(vertex_pos, pos, vertex_q.iter(), wall_q.iter()))
         else {
             return;
         };
@@ -97,6 +100,7 @@ pub fn get_obstacle_pos<'a>(
     pos1: Vec2,
     pos2: Vec2,
     vertex_q: impl Iterator<Item = &'a Transform>,
+    wall_q: impl Iterator<Item = &'a Transform>,
 ) -> Vec2 {
     let Ok(dir) = Dir2::new(pos2 - pos1) else {
         return pos2;
@@ -108,6 +112,14 @@ pub fn get_obstacle_pos<'a>(
     for transform in vertex_q {
         let circle = BoundingCircle::new(transform.translation.xy(), Vertex::RADIUS);
         if let Some(result) = ray_cast.circle_intersection_at(&circle) {
+            if obstacle_dist.is_none() || obstacle_dist.unwrap() > result {
+                obstacle_dist = Some(result);
+            }
+        }
+    }
+    for transform in wall_q {
+        let aabb = Aabb2d::new(transform.translation.xy(), transform.scale.xy() / 2.0);
+        if let Some(result) = ray_cast.aabb_intersection_at(&aabb) {
             if obstacle_dist.is_none() || obstacle_dist.unwrap() > result {
                 obstacle_dist = Some(result);
             }
