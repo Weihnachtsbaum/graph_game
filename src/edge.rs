@@ -29,13 +29,13 @@ fn handle_mouse_move(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     for ev in cursor_evr.read() {
-        let Ok((selected, vertex_transform)) = selected_q.get_single() else {
+        let Ok((selected, vertex_transform)) = selected_q.single() else {
             return;
         };
         let Ok((mut transform, mesh2d)) = edge_q.get_mut(selected.edge) else {
             return;
         };
-        let Ok((cam, cam_transform)) = cam_q.get_single() else {
+        let Ok((cam, cam_transform)) = cam_q.single() else {
             return;
         };
         let vertex_pos = vertex_transform.translation.xy();
@@ -68,7 +68,7 @@ pub fn handle_edge_click(
     mut commands: Commands,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
 ) {
-    let Ok(edge) = edge_q.get(trigger.entity()) else {
+    let Ok(edge) = edge_q.get(trigger.target()) else {
         return;
     };
     if let Ok((mut vertex, handle, children)) = vertex_q.get_mut(edge.0) {
@@ -89,7 +89,7 @@ pub fn handle_edge_click(
             material.set_solved(vertex.edges.len() == vertex.required_edges, &mut text_color);
         }
     }
-    commands.entity(trigger.entity()).despawn();
+    commands.entity(trigger.target()).despawn();
     commands.run_system(check_if_solved_system.0);
 }
 

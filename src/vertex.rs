@@ -1,8 +1,8 @@
 use bevy::{
+    platform::collections::HashSet,
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{Material2d, Material2dPlugin},
-    utils::HashSet,
 };
 
 use crate::{
@@ -130,9 +130,9 @@ fn handle_vertex_click(
         mut selected_transform,
         selected_children,
         selected,
-    )) = selected_q.get_single_mut()
+    )) = selected_q.single_mut()
     else {
-        let Ok(handle) = mesh_material_q.get(trigger.entity()) else {
+        let Ok(handle) = mesh_material_q.get(trigger.target()) else {
             return;
         };
         let Some(material) = vertex_materials.get_mut(handle) else {
@@ -140,7 +140,7 @@ fn handle_vertex_click(
         };
         material.set_selected(true);
 
-        let Ok((entity, _, mut transform, _)) = vertex_q.get_mut(trigger.entity()) else {
+        let Ok((entity, _, mut transform, _)) = vertex_q.get_mut(trigger.target()) else {
             return;
         };
         transform.translation.z += 1.0;
@@ -165,7 +165,7 @@ fn handle_vertex_click(
             ))
             .id();
 
-        commands.entity(trigger.entity()).insert(Selected { edge });
+        commands.entity(trigger.target()).insert(Selected { edge });
         return;
     };
 
@@ -185,7 +185,7 @@ fn handle_vertex_click(
         selected_transform.translation.xy(),
         pointer_pos.xy(),
         vertex_q.iter().filter_map(|(e, _, transform, _)| {
-            if e == trigger.entity() {
+            if e == trigger.target() {
                 None
             } else {
                 Some(transform)
@@ -196,7 +196,7 @@ fn handle_vertex_click(
         return;
     }
 
-    let Ok((entity, mut vertex, transform, children)) = vertex_q.get_mut(trigger.entity()) else {
+    let Ok((entity, mut vertex, transform, children)) = vertex_q.get_mut(trigger.target()) else {
         // Unselect vertex.
         return;
     };
@@ -265,7 +265,7 @@ fn handle_vertex_drag(
     mut edge_q: Query<(&Edge, &mut Transform, &Mesh2d), Without<Vertex>>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    let entity = trigger.entity();
+    let entity = trigger.target();
     let Ok((vertex, transform)) = vertex_q.get(entity) else {
         return;
     };

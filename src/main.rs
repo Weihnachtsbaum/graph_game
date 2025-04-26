@@ -26,13 +26,13 @@ fn main() -> AppExit {
 fn setup(mut commands: Commands) {
     commands.spawn((
         Camera2d,
-        OrthographicProjection {
+        Projection::Orthographic(OrthographicProjection {
             scaling_mode: ScalingMode::AutoMin {
                 min_width: 1440.0,
                 min_height: 1440.0,
             },
             ..OrthographicProjection::default_2d()
-        },
+        }),
         Camera {
             hdr: true,
             ..default()

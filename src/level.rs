@@ -175,10 +175,10 @@ fn switch_level(
     mut commands: Commands,
 ) {
     for entity in &despawn_q {
-        commands.entity(entity).despawn_recursive();
+        commands.entity(entity).despawn();
     }
     level.0 += 1;
-    if let Ok(mut level_text) = level_text_q.get_single_mut() {
+    if let Ok(mut level_text) = level_text_q.single_mut() {
         level_text.0 = format!("Level {}", level.0);
     }
 }
