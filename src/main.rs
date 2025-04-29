@@ -5,6 +5,7 @@ use bevy::{core_pipeline::bloom::Bloom, prelude::*, render::camera::ScalingMode}
 mod audio;
 mod edge;
 mod level;
+mod pause;
 mod vertex;
 
 fn main() -> AppExit {
@@ -15,6 +16,7 @@ fn main() -> AppExit {
             audio::plugin,
             edge::plugin,
             level::plugin,
+            pause::plugin,
             vertex::plugin,
         ))
         .init_state::<GameState>()
@@ -45,5 +47,6 @@ fn setup(mut commands: Commands) {
 enum GameState {
     #[default]
     Playing,
+    Paused,
     LevelTransition,
 }
