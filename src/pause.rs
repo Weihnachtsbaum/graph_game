@@ -14,8 +14,7 @@ pub fn plugin(app: &mut App) {
                 update_buttons,
             ),
         )
-        .add_systems(OnEnter(Paused), setup)
-        .add_systems(OnExit(Paused), cleanup);
+        .add_systems(OnEnter(Paused), setup);
 }
 
 fn pause(state: Res<State<GameState>>, mut next_state: ResMut<NextState<GameState>>) {
@@ -27,9 +26,6 @@ fn pause(state: Res<State<GameState>>, mut next_state: ResMut<NextState<GameStat
 }
 
 #[derive(Component)]
-struct PauseMenu;
-
-#[derive(Component)]
 enum ButtonType {
     Settings,
     Exit,
@@ -37,7 +33,7 @@ enum ButtonType {
 
 fn setup(mut commands: Commands) {
     commands.spawn((
-        PauseMenu,
+        StateScoped(Paused),
         Node {
             width: Val::Percent(30.0),
             height: Val::Percent(100.0),
@@ -117,10 +113,4 @@ fn update_buttons(
 
 fn update_ui_scale(mut scale: ResMut<UiScale>, window: Single<&Window, With<PrimaryWindow>>) {
     **scale = window.resolution.size().min_element() / 1440.0;
-}
-
-fn cleanup(mut commands: Commands, q: Query<Entity, With<PauseMenu>>) {
-    for e in &q {
-        commands.entity(e).despawn();
-    }
 }
