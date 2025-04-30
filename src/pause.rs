@@ -2,22 +2,25 @@ use bevy::{input::common_conditions::input_just_pressed, prelude::*, window::Pri
 
 use crate::GameState::{self, *};
 
+mod settings;
+
 pub fn plugin(app: &mut App) {
-    app.add_systems(
-        Update,
-        (
-            pause.run_if(input_just_pressed(KeyCode::Escape)),
-            update_ui_scale,
-            update_buttons,
-        ),
-    )
-    .add_systems(OnEnter(Paused), setup)
-    .add_systems(OnExit(Paused), cleanup);
+    app.add_plugins(settings::plugin)
+        .add_systems(
+            Update,
+            (
+                pause.run_if(input_just_pressed(KeyCode::Escape)),
+                update_ui_scale,
+                update_buttons,
+            ),
+        )
+        .add_systems(OnEnter(Paused), setup)
+        .add_systems(OnExit(Paused), cleanup);
 }
 
 fn pause(state: Res<State<GameState>>, mut next_state: ResMut<NextState<GameState>>) {
     next_state.set(match state.get() {
-        Playing => Paused,
+        Playing | Settings => Paused,
         Paused => Playing,
         LevelTransition => return,
     });
@@ -87,6 +90,7 @@ fn setup(mut commands: Commands) {
 fn update_buttons(
     mut q: Query<(&Interaction, &ButtonType, &mut BackgroundColor), Changed<Interaction>>,
     mut exit_evw: EventWriter<AppExit>,
+    mut next_state: ResMut<NextState<GameState>>,
 ) {
     use ButtonType::*;
     use Interaction::*;
@@ -101,10 +105,10 @@ fn update_buttons(
             Pressed => {
                 bg.0 = Color::srgb(0.6, 0.6, 0.6);
                 match *button_type {
-                    Settings => {
-                        todo!()
+                    Settings => next_state.set(GameState::Settings),
+                    Exit => {
+                        exit_evw.write(AppExit::Success);
                     }
-                    Exit => exit_evw.write(AppExit::Success),
                 };
             }
         }

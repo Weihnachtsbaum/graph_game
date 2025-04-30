@@ -44,9 +44,11 @@ fn setup(mut commands: Commands) {
 }
 
 #[derive(States, Default, Clone, Debug, PartialEq, Eq, Hash)]
+#[states(scoped_entities)]
 enum GameState {
     #[default]
     Playing,
     Paused,
+    Settings,
     LevelTransition,
 }
