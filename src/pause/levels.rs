@@ -44,6 +44,7 @@ fn setup(
 
             const DIST: f32 = 330.0;
             fn i_to_pos(i: u64) -> Vec2 {
+                let i = (i - 1) % 10 + 1;
                 let column = (i - 1) / 2;
                 let is_first_in_column = (i - 1) % 2 == 0;
                 let row = if column % 2 == 0 {
@@ -54,7 +55,9 @@ fn setup(
                 Vec2::new(-670.0 + column as f32 * DIST, row as f32 * DIST)
             }
 
-            for i in 1..=10 {
+            let page = (level.0 - 1) / 10;
+
+            for i in page * 10 + 1..=page * 10 + 10 {
                 let pos = i_to_pos(i);
                 parent
                     .spawn((
@@ -78,7 +81,7 @@ fn setup(
                         }),
                     ))
                     .observe(handle_vertex_click);
-                if i == 10 {
+                if (i - 1) % 10 == 9 {
                     continue;
                 }
                 let next_pos = i_to_pos(i + 1);
