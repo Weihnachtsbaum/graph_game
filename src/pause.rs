@@ -2,10 +2,11 @@ use bevy::{input::common_conditions::input_just_pressed, prelude::*, window::Pri
 
 use crate::GameState::{self, *};
 
+mod levels;
 mod settings;
 
 pub fn plugin(app: &mut App) {
-    app.add_plugins(settings::plugin)
+    app.add_plugins((levels::plugin, settings::plugin))
         .add_systems(
             Update,
             (
@@ -19,7 +20,7 @@ pub fn plugin(app: &mut App) {
 
 fn pause(state: Res<State<GameState>>, mut next_state: ResMut<NextState<GameState>>) {
     next_state.set(match state.get() {
-        Playing | Settings => Paused,
+        Playing | LevelSelect | Settings => Paused,
         Paused => Playing,
         LevelTransition => return,
     });
@@ -27,6 +28,7 @@ fn pause(state: Res<State<GameState>>, mut next_state: ResMut<NextState<GameStat
 
 #[derive(Component)]
 enum ButtonType {
+    Levels,
     Settings,
     Exit,
 }
@@ -53,6 +55,20 @@ fn setup(mut commands: Commands) {
             ),
             (
                 Button,
+                ButtonType::Levels,
+                Text::new("Levels"),
+                TextFont {
+                    font_size: 50.0,
+                    ..default()
+                },
+                TextColor(Color::BLACK),
+                Node {
+                    top: Val::Percent(30.0),
+                    ..default()
+                }
+            ),
+            (
+                Button,
                 ButtonType::Settings,
                 Text::new("Settings"),
                 TextFont {
@@ -61,7 +77,7 @@ fn setup(mut commands: Commands) {
                 },
                 TextColor(Color::BLACK),
                 Node {
-                    top: Val::Percent(35.0),
+                    top: Val::Percent(40.0),
                     ..default()
                 }
             ),
@@ -75,7 +91,7 @@ fn setup(mut commands: Commands) {
                 },
                 TextColor(Color::BLACK),
                 Node {
-                    top: Val::Percent(45.0),
+                    top: Val::Percent(50.0),
                     ..default()
                 }
             )
@@ -101,6 +117,7 @@ fn update_buttons(
             Pressed => {
                 bg.0 = Color::srgb(0.6, 0.6, 0.6);
                 match *button_type {
+                    Levels => next_state.set(GameState::LevelSelect),
                     Settings => next_state.set(GameState::Settings),
                     Exit => {
                         exit_evw.write(AppExit::Success);

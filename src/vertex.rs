@@ -72,7 +72,7 @@ pub struct VertexMaterial {
     /// 1 << 0: selected
     /// 1 << 1: solved
     #[uniform(0)]
-    bits: u32,
+    pub bits: u32,
 }
 
 impl Material2d for VertexMaterial {

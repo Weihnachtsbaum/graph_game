@@ -49,6 +49,7 @@ enum GameState {
     #[default]
     Playing,
     Paused,
+    LevelSelect,
     Settings,
     LevelTransition,
 }

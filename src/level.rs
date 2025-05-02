@@ -32,10 +32,10 @@ pub fn plugin(app: &mut App) {
 pub struct CheckIfSolvedSystem(pub SystemId);
 
 #[derive(Resource)]
-struct Level(u64);
+pub struct Level(pub u64);
 
 #[derive(Component)]
-struct LevelText;
+pub struct LevelText;
 
 fn setup(mut commands: Commands) {
     let id = commands.register_system(check_if_solved);
@@ -52,7 +52,7 @@ fn setup(mut commands: Commands) {
     ));
 }
 
-fn generate_level(
+pub fn generate_level(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<VertexMaterial>>,
