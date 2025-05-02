@@ -6,6 +6,7 @@ use bevy::{
 };
 
 use crate::{
+    GameState,
     audio::{PlaceAudioHandle, SelectAudioHandle},
     edge::{Edge, get_obstacle_pos, handle_edge_click},
     level::CheckIfSolvedSystem,
@@ -120,7 +121,11 @@ fn handle_vertex_click(
     select_audio: Res<SelectAudioHandle>,
     place_audio: Res<PlaceAudioHandle>,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
+    state: Res<State<GameState>>,
 ) {
+    if *state.get() != GameState::Playing {
+        return;
+    }
     let Some(pointer_pos) = trigger.event().hit.position else {
         return;
     };
@@ -264,7 +269,11 @@ fn handle_vertex_drag(
     mut vertex_q: Query<(&Vertex, &mut Transform)>,
     mut edge_q: Query<(&Edge, &mut Transform, &Mesh2d), Without<Vertex>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    state: Res<State<GameState>>,
 ) {
+    if *state.get() != GameState::Playing {
+        return;
+    }
     let entity = trigger.target();
     let Ok((vertex, transform)) = vertex_q.get(entity) else {
         return;

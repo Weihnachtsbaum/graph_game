@@ -4,12 +4,16 @@ use bevy::{
 };
 
 use crate::{
+    GameState,
     level::CheckIfSolvedSystem,
     vertex::{Selected, Vertex, VertexMaterial},
 };
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, handle_mouse_move);
+    app.add_systems(
+        Update,
+        handle_mouse_move.run_if(in_state(GameState::Playing)),
+    );
 }
 
 #[derive(Component)]
@@ -59,6 +63,7 @@ fn handle_mouse_move(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn handle_edge_click(
     trigger: Trigger<Pointer<Click>>,
     edge_q: Query<&Edge>,
@@ -67,7 +72,11 @@ pub fn handle_edge_click(
     mut materials: ResMut<Assets<VertexMaterial>>,
     mut commands: Commands,
     check_if_solved_system: Res<CheckIfSolvedSystem>,
+    state: Res<State<GameState>>,
 ) {
+    if *state.get() != GameState::Playing {
+        return;
+    }
     let Ok(edge) = edge_q.get(trigger.target()) else {
         return;
     };
