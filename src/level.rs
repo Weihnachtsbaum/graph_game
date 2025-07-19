@@ -19,11 +19,14 @@ pub fn plugin(app: &mut App) {
         .init_resource::<NextLevelTimer>()
         .add_systems(Startup, (setup, generate_level))
         .add_systems(
-            FixedUpdate,
-            tick_next_level_timer.run_if(in_state(GameState::LevelTransition)),
+            Update,
+            (
+                enter_level.run_if(in_state(GameState::LevelEnter)),
+                exit_level.run_if(in_state(GameState::LevelExit)),
+            ),
         )
         .add_systems(
-            OnExit(GameState::LevelTransition),
+            OnExit(GameState::LevelExit),
             (switch_level, generate_level).chain(),
         );
 }
@@ -138,7 +141,7 @@ fn check_if_solved(
         .iter()
         .all(|(_, vertex)| vertex.edges.len() == vertex.required_edges);
     if solved {
-        next_state.set(GameState::LevelTransition);
+        next_state.set(GameState::LevelExit);
         commands.spawn((
             AudioPlayer(beat_level_audio.0.clone()),
             PlaybackSettings::DESPAWN,
@@ -151,18 +154,40 @@ struct NextLevelTimer(Timer);
 
 impl Default for NextLevelTimer {
     fn default() -> Self {
-        Self(Timer::from_seconds(1.0, TimerMode::Once))
+        Self(Timer::from_seconds(2.0, TimerMode::Once))
     }
 }
 
-fn tick_next_level_timer(
+fn enter_level(
     mut timer: ResMut<NextLevelTimer>,
     time: Res<Time>,
+    mut cam: Single<&mut Transform, With<Camera>>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     timer.0.tick(time.delta());
+    let t = timer.0.fraction();
+    let quadratic_out = -t * t + 2.0 * t - 1.0;
+    let cubic_out = (t - 1.0).powi(3);
+    cam.translation = Vec3::new(quadratic_out * 2000.0, cubic_out * -1000.0, 0.0);
     if timer.0.finished() {
         next_state.set(GameState::Playing);
+        timer.0.reset();
+    }
+}
+
+fn exit_level(
+    mut timer: ResMut<NextLevelTimer>,
+    time: Res<Time>,
+    mut cam: Single<&mut Transform, With<Camera>>,
+    mut next_state: ResMut<NextState<GameState>>,
+) {
+    timer.0.tick(time.delta());
+    let t = timer.0.fraction();
+    let quadratic_in = t * t;
+    let cubic_in = t * t * t;
+    cam.translation = Vec3::new(quadratic_in * 2000.0, cubic_in * -1000.0, 0.0);
+    if timer.0.finished() {
+        next_state.set(GameState::LevelEnter);
         timer.0.reset();
     }
 }

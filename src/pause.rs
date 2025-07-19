@@ -22,7 +22,7 @@ fn pause(state: Res<State<GameState>>, mut next_state: ResMut<NextState<GameStat
     next_state.set(match state.get() {
         Playing | LevelSelect | Settings => Paused,
         Paused => Playing,
-        LevelTransition => return,
+        LevelEnter | LevelExit => return,
     });
 }
 
