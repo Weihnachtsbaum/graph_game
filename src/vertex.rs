@@ -56,7 +56,7 @@ impl Vertex {
                 Transform::from_translation(pos),
             ))
             .with_child((
-                Text2d(format!("{}", required)),
+                Text2d(format!("{required}")),
                 TextFont {
                     font_size: 70.0,
                     ..default()

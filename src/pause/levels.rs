@@ -46,8 +46,8 @@ fn setup(
             fn i_to_pos(i: u64) -> Vec2 {
                 let i = (i - 1) % 10 + 1;
                 let column = (i - 1) / 2;
-                let is_first_in_column = (i - 1) % 2 == 0;
-                let row = if column % 2 == 0 {
+                let is_first_in_column = (i - 1).is_multiple_of(2);
+                let row = if column.is_multiple_of(2) {
                     is_first_in_column as u8
                 } else {
                     !is_first_in_column as u8
@@ -69,7 +69,7 @@ fn setup(
                         Transform::from_translation(pos.extend(2.0)),
                     ))
                     .with_child((
-                        Text2d(format!("{}", i)),
+                        Text2d(format!("{i}")),
                         TextFont {
                             font_size: 70.0,
                             ..default()

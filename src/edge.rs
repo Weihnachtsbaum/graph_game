@@ -116,11 +116,10 @@ pub fn get_obstacle_pos<'a>(
     let mut obstacle_dist = None;
     for transform in vertex_q {
         let circle = BoundingCircle::new(transform.translation.xy(), Vertex::RADIUS);
-        if let Some(result) = ray_cast.circle_intersection_at(&circle) {
-            if obstacle_dist.is_none() || obstacle_dist.unwrap() > result {
+        if let Some(result) = ray_cast.circle_intersection_at(&circle)
+            && (obstacle_dist.is_none() || obstacle_dist.unwrap() > result) {
                 obstacle_dist = Some(result);
             }
-        }
     }
     match obstacle_dist {
         Some(dist) => ray.get_point(dist),
